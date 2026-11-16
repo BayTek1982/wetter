@@ -10,6 +10,21 @@
 <meta name="apple-mobile-web-app-title" content="Wetter">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d2a4a">
+<script>
+/* Hell / Dunkel: "dunkel" (Standard), "hell" oder "auto" (wie das Handy) */
+(function(){
+  var w="dunkel"; try{ w=localStorage.getItem("wetterThema")||"dunkel"; }catch(e){}
+  var mq=window.matchMedia&&matchMedia("(prefers-color-scheme: light)");
+  window.__thema={ wahl:w, setzen:function(neu){
+    if(neu){ this.wahl=neu; try{ localStorage.setItem("wetterThema",neu); }catch(e){} }
+    var hell=this.wahl==="hell"||(this.wahl==="auto"&&mq&&mq.matches);
+    document.documentElement.setAttribute("data-theme",hell?"light":"dark");
+    var m=document.querySelector('meta[name=theme-color]'); if(m) m.content=hell?"#e3eff8":"#0d2a4a";
+  }};
+  window.__thema.setzen();
+  if(mq&&mq.addEventListener) mq.addEventListener("change",function(){ window.__thema.setzen(); });
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -17,12 +32,25 @@
     --hg1:#0b2340; --hg2:#14507a; --hg3:#1f7a9c;
     --karte:rgba(255,255,255,.09); --rand:rgba(255,255,255,.14);
     --text:#f2f6fa; --leise:rgba(242,246,250,.62);
+    --glas:rgba(255,255,255,.05); --glas2:rgba(255,255,255,.12); --glas3:rgba(255,255,255,.16); --linie:rgba(255,255,255,.08);
+    --wahlHg:rgba(0,0,0,.18); --anHg:#fff; --anText:#0d2a4a; --punktRand:#0d2a4a; --leucht:rgba(255,216,77,.18);
+    --tText:rgba(242,246,250,.75); --tStark:#fff; --tFlaeche:rgba(255,255,255,.06); --tLinie:rgba(255,255,255,.18);
     --max:#ffb15c; --min:#7cc7ff; --sonne:#ffd84d; --regen:#6fb8ff;
   }
+  :root[data-theme=light]{
+    --hg1:#cfe2f2; --hg2:#e3eff8; --hg3:#f4f9fd;
+    --karte:rgba(255,255,255,.72); --rand:rgba(13,42,74,.1);
+    --text:#10243a; --leise:rgba(16,36,58,.6);
+    --max:#e0761a; --min:#1f7fd1; --sonne:#c99300; --regen:#1f7fd1;
+    --glas:rgba(13,42,74,.04); --glas2:rgba(13,42,74,.07); --glas3:rgba(13,42,74,.09); --linie:rgba(13,42,74,.08);
+    --wahlHg:rgba(13,42,74,.08); --anHg:#0d2a4a; --anText:#fff; --punktRand:#fff; --leucht:rgba(255,200,40,.28);
+    --tText:rgba(16,36,58,.7); --tStark:#10243a; --tFlaeche:rgba(13,42,74,.05); --tLinie:rgba(13,42,74,.2);
+  }
+  :root[data-theme=light] svg.w{filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.28))}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{background:var(--hg1)}
   body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);
-    background:radial-gradient(1200px 600px at 80% -10%,rgba(255,216,77,.18),transparent 60%),
+    background:radial-gradient(1200px 600px at 80% -10%,var(--leucht),transparent 60%),
                linear-gradient(170deg,var(--hg3) 0%,var(--hg2) 35%,var(--hg1) 85%);background-attachment:fixed}
   main{max-width:860px;margin:0 auto;padding:12px 14px 30px}
 
@@ -35,10 +63,10 @@
   #suche{display:none;margin:8px 0}
   #suche.offen{display:block}
   #suche input{width:100%;font:inherit;font-size:17px;padding:12px 14px;border-radius:14px;border:1px solid var(--rand);
-    background:rgba(255,255,255,.12);color:var(--text);outline:none}
+    background:var(--glas2);color:var(--text);outline:none}
   #suche input::placeholder{color:var(--leise)}
   #treffer{margin-top:6px;border-radius:14px;overflow:hidden}
-  #treffer div{padding:12px 14px;background:rgba(255,255,255,.08);border-bottom:1px solid var(--rand);cursor:pointer}
+  #treffer div{padding:12px 14px;background:var(--karte);border-bottom:1px solid var(--rand);cursor:pointer}
   #treffer small{color:var(--leise)}
 
   /* Jetzt */
@@ -59,7 +87,7 @@
 
   /* Abschnitte */
   .zeilen{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:6px}
-  .zeilen>div{background:rgba(255,255,255,.05);border-radius:16px;padding:10px 2px}
+  .zeilen>div{background:var(--glas);border-radius:16px;padding:10px 2px}
   .lbl{color:var(--leise);font-size:13.5px}
   .temp{font-size:26px;font-weight:500;margin:4px 0 0}
   .sym{display:flex;align-items:center;justify-content:center;gap:2px;height:50px}
@@ -68,19 +96,19 @@
   .klein{font-size:13px;color:var(--leise)}
 
   /* Tage-Auswahl */
-  .wahl{display:flex;background:rgba(0,0,0,.18);border-radius:999px;padding:3px}
+  .wahl{display:flex;background:var(--wahlHg);border-radius:999px;padding:3px}
   .wahl button{white-space:nowrap;border:0;background:none;color:var(--leise);font:inherit;font-size:13px;font-weight:600;padding:6px 11px;border-radius:999px;cursor:pointer;text-transform:none;letter-spacing:0}
-  .wahl button.an{background:#fff;color:#0d2a4a}
+  .wahl button.an{background:var(--anHg);color:var(--anText)}
 
   /* Ansicht-Schalter + Kacheln */
   .titel .links{display:flex;align-items:center;gap:8px}
-  .ansicht{display:flex;background:rgba(0,0,0,.18);border-radius:999px;padding:3px}
+  .ansicht{display:flex;background:var(--wahlHg);border-radius:999px;padding:3px}
   .ansicht button{border:0;background:none;color:var(--leise);font-size:15px;line-height:1;padding:6px 9px;border-radius:999px;cursor:pointer}
-  .ansicht button.an{background:#fff;color:#0d2a4a}
+  .ansicht button.an{background:var(--anHg);color:var(--anText)}
   @media(max-width:440px){#tageKopf{display:none}}
   .kacheln{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(92px,1fr);gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:thin}
-  .kachel{scroll-snap-align:start;text-align:center;background:rgba(255,255,255,.05);border-radius:16px;padding:9px 4px 10px;cursor:pointer;border:1px solid transparent}
-  .kachel.aktiv{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+  .kachel{scroll-snap-align:start;text-align:center;background:var(--glas);border-radius:16px;padding:9px 4px 10px;cursor:pointer;border:1px solid transparent}
+  .kachel.aktiv{background:var(--glas3);border-color:var(--rand)}
   .kachel .kn{font-weight:600;font-size:13.5px;white-space:nowrap}
   .kachel .kd{font-size:12.5px;color:var(--leise);margin-top:1px}
   .kachel .kmx{font-size:26px;font-weight:600;color:var(--max);margin-top:8px;line-height:1.1}
@@ -90,9 +118,9 @@
   .kachel .ks{font-size:13px;color:var(--sonne)}
   .kachel .kr{font-size:13px;color:var(--regen);margin-top:3px}
   /* Tagesliste */
-  .tag{display:grid;grid-template-columns:78px 44px 50px 1fr;align-items:center;gap:6px;padding:8px 4px;border-top:1px solid rgba(255,255,255,.08);cursor:pointer;border-radius:12px}
+  .tag{display:grid;grid-template-columns:78px 44px 50px 1fr;align-items:center;gap:6px;padding:8px 4px;border-top:1px solid var(--linie);cursor:pointer;border-radius:12px}
   .tag:first-of-type{border-top:0}
-  .tag.aktiv{background:rgba(255,255,255,.1)}
+  .tag.aktiv{background:var(--glas2)}
   .tag .name{font-weight:600;font-size:15px;line-height:1.2}
   .tag .name small{display:block;font-weight:400;color:var(--leise);font-size:12px}
   .tag svg.w{width:42px;height:36px}
@@ -101,7 +129,7 @@
   .spanne{display:flex;align-items:center;gap:8px;font-size:15px}
   .spanne .mn{width:32px;text-align:right;color:var(--min)}
   .spanne .mx{width:32px;color:var(--max);font-weight:600}
-  .balken{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12);position:relative}
+  .balken{flex:1;height:6px;border-radius:3px;background:var(--glas2);position:relative}
   .balken i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--min),var(--max))}
 
   /* Trend */
@@ -109,13 +137,13 @@
   #trend text{font-family:Inter,system-ui,sans-serif}
   .legende{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--leise);margin:8px 2px 0}
   .legende i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
-  .legende .verlauf{display:inline-block;width:56px;height:9px;border-radius:5px;background:linear-gradient(90deg,var(--sonne),rgba(255,255,255,.12));margin:0 5px;vertical-align:0}
+  .legende .verlauf{display:inline-block;width:56px;height:9px;border-radius:5px;background:linear-gradient(90deg,var(--sonne),var(--glas2));margin:0 5px;vertical-align:0}
 
   .leiste{display:grid;grid-template-columns:1fr auto 1fr}
   .links{display:flex;gap:8px}.rechts{display:flex;gap:8px;justify-content:flex-end}
   .sicher{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:5px;vertical-align:1px}
   #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;transition:.25s;
-    background:#fff;color:#0d2a4a;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);pointer-events:none;z-index:9}
+    background:var(--anHg);color:var(--anText);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);pointer-events:none;z-index:9}
   #toast.zeigen{opacity:1;transform:translateX(-50%) translateY(0)}
   #status{text-align:center;color:var(--leise);padding:60px 0}
   footer{text-align:center;color:var(--leise);font-size:12px;padding:6px 0}
@@ -128,7 +156,7 @@
   <div class="leiste">
     <div class="links"><button class="rund" id="ortBtn" title="Mein Standort">◎</button><button class="rund" id="sucheBtn" title="Ort suchen">🔍</button></div>
     <div class="ort" id="ortName" title="Doppeltipp: zurück zu Ergolding"><span>📍</span>Ergolding</div>
-    <div class="rechts"><button class="rund" id="teilenBtn" title="Teilen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button></div>
+    <div class="rechts"><button class="rund" id="themaBtn" title="Hell / Dunkel" aria-label="Hell oder dunkel">🌓</button><button class="rund" id="teilenBtn" title="Teilen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button></div>
   </div>
   <div id="suche"><input id="sucheFeld" placeholder="Ort suchen, z. B. Landshut" autocomplete="off"><div id="treffer"></div></div>
 
@@ -156,7 +184,7 @@
         <span><i style="background:var(--max)"></i>Max (°C)</span>
         <span><i style="background:var(--min)"></i>Min (°C)</span>
         <span>💧 Regen</span>
-        <span><i style="background:rgba(255,255,255,.35);border-radius:2px;width:14px"></i>Spanne der Wettermodelle</span>
+        <span><i style="background:var(--tLinie);border-radius:2px;width:14px"></i>Spanne der Wettermodelle</span>
         <span>┄ unsicher (ab Tag 8)</span>
         <span>☀ viel<span class="verlauf"></span>wenig</span>
       </div>
@@ -405,10 +433,10 @@ function trendZeigen(){
   let g = "";
   for(let i=0;i<n;i++){
     const wt = wtag(i), we = wt===0||wt===6;
-    if(we) g += `<rect x="${spalte*i}" y="0" width="${spalte}" height="${unten}" fill="rgba(255,255,255,.06)"/>`;
-    g += `<text x="${x(i)}" y="18" text-anchor="middle" font-size="${fs}" font-weight="${we?700:500}" fill="${i===0?"#fff":"rgba(242,246,250,.75)"}">${i===0&&n<=7?"Heute":KURZ[wt]}</text>`;
+    if(we) g += `<rect x="${spalte*i}" y="0" width="${spalte}" height="${unten}" fill="var(--tFlaeche)"/>`;
+    g += `<text x="${x(i)}" y="18" text-anchor="middle" font-size="${fs}" font-weight="${we?700:500}" fill="${i===0?"var(--tStark)":"var(--tText)"}">${i===0&&n<=7?"Heute":KURZ[wt]}</text>`;
   }
-  if(lo<0 && hi>0) g += `<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(255,255,255,.18)" stroke-dasharray="4 4"/><text x="4" y="${y(0)-4}" font-size="10" fill="rgba(242,246,250,.5)">0°</text>`;
+  if(lo<0 && hi>0) g += `<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--tLinie)" stroke-dasharray="4 4"/><text x="4" y="${y(0)-4}" font-size="10" fill="var(--tText)">0°</text>`;
   const pMax = mx.map((t,i)=>[x(i),y(t)]), pMin = mn.map((t,i)=>[x(i),y(t)]);
   const band = (oberP, unterP) => `${kurve(oberP)} L${unterP[unterP.length-1][0]},${unterP[unterP.length-1][1]} ${kurve([...unterP].reverse()).replace(/^M[^C]*/,"")} Z`;
   if(sp){
@@ -425,8 +453,8 @@ function trendZeigen(){
     if(n>7) g += `<path d="${kurve(pp)}" fill="none" stroke="${f}" stroke-width="2.5" stroke-dasharray="5 5" opacity=".7" clip-path="url(#unsicherZone)"/>`;
   }
   for(let i=0;i<n;i++){
-    g += `<circle cx="${pMax[i][0]}" cy="${pMax[i][1]}" r="4" opacity="${i>6?.7:1}" fill="var(--max)" stroke="#0d2a4a" stroke-width="1.5"/>`;
-    g += `<circle cx="${pMin[i][0]}" cy="${pMin[i][1]}" r="4" opacity="${i>6?.7:1}" fill="var(--min)" stroke="#0d2a4a" stroke-width="1.5"/>`;
+    g += `<circle cx="${pMax[i][0]}" cy="${pMax[i][1]}" r="4" opacity="${i>6?.7:1}" fill="var(--max)" stroke="var(--punktRand)" stroke-width="1.5"/>`;
+    g += `<circle cx="${pMin[i][0]}" cy="${pMin[i][1]}" r="4" opacity="${i>6?.7:1}" fill="var(--min)" stroke="var(--punktRand)" stroke-width="1.5"/>`;
     g += `<text x="${x(i)}" y="${pMax[i][1]-10}" text-anchor="middle" font-size="${fs}" font-weight="600" fill="var(--max)">${runde(mx[i])}°</text>`;
     g += `<text x="${x(i)}" y="${pMin[i][1]+21}" text-anchor="middle" font-size="${fs}" font-weight="600" fill="var(--min)">${runde(mn[i])}°</text>`;
     // Sonnen-Band: je gelber, desto mehr Sonne
@@ -436,7 +464,7 @@ function trendZeigen(){
     const mm = d.precipitation_sum[i]||0, tropfen = mm>=5?3:mm>=2?2:mm>=0.3?1:0;
     for(let k=0;k<tropfen;k++){
       const tx = x(i) + (k-(tropfen-1)/2)*(n>10?7:9), ty = bandY+8;
-      g += `<path transform="translate(${tx} ${ty})" d="M0 0q5 7 0 12q-5-5 0-12z" fill="#6fb8ff" stroke="#0d2a4a" stroke-width=".8"/>`;
+      g += `<path transform="translate(${tx} ${ty})" d="M0 0q5 7 0 12q-5-5 0-12z" fill="#6fb8ff" stroke="var(--punktRand)" stroke-width=".8"/>`;
     }
   }
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -447,6 +475,10 @@ function trendZeigen(){
 }
 
 /* ---------- Bedienung ---------- */
+document.getElementById("themaBtn").onclick = ()=>{
+  const folge = {dunkel:"hell", hell:"auto", auto:"dunkel"}, name = {dunkel:"Dunkel", hell:"Hell", auto:"Automatisch (wie das Handy)"};
+  const neu = folge[window.__thema.wahl]||"dunkel"; window.__thema.setzen(neu); toast("Darstellung: "+name[neu]);
+};
 document.querySelectorAll("#ansicht button").forEach(b=>b.onclick=()=>{
   ansicht = b.dataset.a; try{localStorage.setItem("wetterAnsicht",ansicht)}catch(e){}
   if(daten) tageZeigen();
