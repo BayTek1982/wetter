@@ -117,6 +117,17 @@
   .kachel .ksym svg.w{width:46px;height:40px}
   .kachel .ks{font-size:13px;color:var(--sonne)}
   .kachel .kr{font-size:13px;color:var(--regen);margin-top:3px}
+  /* Tagesdetails */
+  #details{margin-top:12px;border-top:1px solid var(--linie);padding-top:10px}
+  .dkopf{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;margin:0 2px 8px}
+  .dkopf::after{content:"";flex:1;height:2px;border-radius:2px;background:var(--sonne);opacity:.7}
+  .dgitter{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:420px){.dgitter{grid-template-columns:1fr}}
+  .dz{display:flex;gap:10px;align-items:center;font-size:14.5px;line-height:1.35}
+  .dz .di{flex:0 0 36px;height:36px;border-radius:50%;border:1.5px solid var(--rand);display:flex;align-items:center;justify-content:center;font-size:17px;background:var(--glas)}
+  .dz small{display:block;color:var(--leise);font-size:13px}
+  .dz .warn{color:#f87171;font-weight:600}
+  .dtext{margin:12px 2px 2px;font-size:15px;line-height:1.5}
   /* Tagesliste */
   .tag{display:grid;grid-template-columns:78px 44px 50px 1fr;align-items:center;gap:6px;padding:8px 4px;border-top:1px solid var(--linie);cursor:pointer;border-radius:12px}
   .tag:first-of-type{border-top:0}
@@ -175,6 +186,7 @@
         <div class="wahl" id="wahl"><button data-n="3">3</button><button data-n="5">5</button><button data-n="7">7</button><button data-n="14">14 Tage</button></div>
       </div>
       <div id="tage"></div>
+      <div id="details"></div>
     </div>
 
     <div class="karte">
@@ -253,8 +265,8 @@ async function laden(){
   if(!daten){ st.hidden=false; st.textContent="Lade Wetter …"; }
   const url = "https://api.open-meteo.com/v1/forecast?latitude="+ort.lat+"&longitude="+ort.lon+
     "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,relative_humidity_2m,is_day"+
-    "&hourly=temperature_2m,precipitation_probability,weather_code,wind_direction_10m,wind_speed_10m"+
-    "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunshine_duration,daylight_duration,precipitation_probability_max,precipitation_sum,wind_direction_10m_dominant,wind_speed_10m_max,sunrise,sunset"+
+    "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_direction_10m,wind_speed_10m"+
+    "&daily=uv_index_max,wind_gusts_10m_max,precipitation_hours,weather_code,temperature_2m_max,temperature_2m_min,sunshine_duration,daylight_duration,precipitation_probability_max,precipitation_sum,wind_direction_10m_dominant,wind_speed_10m_max,sunrise,sunset"+
     "&timezone=Europe%2FBerlin&forecast_days=14";
   try{
     const r = await fetch(url); if(!r.ok) throw new Error(r.status);
@@ -319,7 +331,71 @@ function abschnitteZeigen(){
     <div class="klein">💧 ${a.regen} %</div></div>`).join("");
 }
 
+/* ---------- Tagesdetails ---------- */
+const RICHT_LANG = ["Nord","Nordost","Ost","Südost","Süd","Südwest","West","Nordwest"];
+function windWort(k){ return k<6?"kaum Wind":k<12?"leichter Wind":k<20?"schwacher Wind":k<29?"mäßiger Wind":k<39?"frischer Wind":k<50?"starker Wind":k<62?"steifer Wind":k<75?"stürmischer Wind":"Sturm"; }
+function uvWort(u){ return u<3?"niedrig":u<6?"mittel":u<8?"hoch":u<11?"sehr hoch":"extrem"; }
+const mm = x => x<0.05 ? "0" : x<1 ? x.toFixed(1).replace(".",",") : (x<10 ? x.toFixed(1).replace(".",",").replace(",0","") : Math.round(x)+"");
+function zeitraum(von, bis){                                   // Stunden-Index von..bis (ohne bis)
+  const h = daten.hourly, ids = [];
+  for(let i=Math.max(0,von); i<bis && i<h.time.length; i++) ids.push(i);
+  if(!ids.length) return null;
+  const summe = ids.reduce((a,i)=>a+(h.precipitation[i]||0),0);
+  return { p:Math.max(...ids.map(i=>h.precipitation_probability[i]??0)), summe, std:ids.filter(i=>(h.precipitation[i]||0)>=0.1).length };
+}
+function satz(code){
+  if(code===0) return "scheint die Sonne";
+  if(code<=2) return "wechseln sich Sonne und Wolken ab";
+  if(code===3) return "ist es bewölkt";
+  if(code<=48) return "ist es neblig";
+  if(code<=57) return "nieselt es";
+  if(code<=67) return "regnet es";
+  if(code<=77) return "schneit es";
+  if(code<=82) return "ziehen Schauer durch";
+  if(code<=86) return "gibt es Schneeschauer";
+  return "gibt es Gewitter";
+}
+function detailsZeigen(){
+  const d = daten.daily, h = daten.hourly, i = gewaehlt, box = document.getElementById("details");
+  const s0 = h.time.indexOf(d.time[i]+"T00:00"); if(s0<0){ box.innerHTML=""; return; }
+  const tag = zeitraum(s0+6, s0+18), nacht = zeitraum(s0+18, s0+30);
+  const zeit = x => x ? x.slice(11,16) : "–";
+  const regen = r => r ? `${r.p} % · ${mm(r.summe)} L/m² · ${r.std} h` : "–";
+  const wind = d.wind_speed_10m_max[i], boe = d.wind_gusts_10m_max ? d.wind_gusts_10m_max[i] : null, uv = d.uv_index_max ? d.uv_index_max[i] : null;
+  const zeile = (ic, oben, unten, warn) => `<div class="dz"><div class="di">${ic}</div><div>${unten?`<small>${oben}</small>`:""}<span class="${warn?"warn":""}">${unten||oben}</span></div></div>`;
+  // Text: die Abschnitte des Tages (heute nur die noch kommenden)
+  const jetztStd = new Date(daten.current.time).getHours();
+  const teile = [["Vormittags",6],["Nachmittags",12],["Abends",18]].filter(([n,o])=> i>0 || o+6>jetztStd)
+    .map(([n,o])=>{ const a=abschnitt(s0+o,n); return a ? [n, satz(a.code)] : null; }).filter(Boolean);
+  let txt = "";
+  if(teile.length){
+    const gleich = teile.every(t=>t[1]===teile[0][1]);
+    if(gleich) txt = (teile.length===3?"Den ganzen Tag ":(i===0?"Heute ":"Den Tag über "))+teile[0][1]+". ";
+    else {
+      const gruppen = [];                                         // gleiche Abschnitte zusammenfassen
+      teile.forEach(t=>{ const g=gruppen[gruppen.length-1]; if(g&&g.satz===t[1]) g.namen.push(t[0]); else gruppen.push({namen:[t[0]],satz:t[1]}); });
+      txt = gruppen.map((g,k)=>{ const n=g.namen.map(x=>x.toLowerCase()).join(" und "); return (k===0?n[0].toUpperCase()+n.slice(1):n)+" "+g.satz; })
+        .join(", ").replace(/, ([^,]*)$/," und $1")+". ";
+    }
+  }
+  txt += `Die Temperatur steigt auf ${runde(d.temperature_2m_max[i])} Grad`+`, nachts geht sie auf ${String(runde(d.temperature_2m_min[i])).replace("-","minus ")} Grad zurück. `;
+  if(d.temperature_2m_min[i]<=0) txt += (nacht&&nacht.summe>0.1||d.temperature_2m_min[i]<=-1) ? "Achtung: Frost, es kann glatt werden. " : "In der Nacht gibt es leichten Frost. ";
+  if(boe!=null&&boe>=60) txt += `Vorsicht vor Sturmböen bis ${Math.round(boe)} km/h. `;
+  else if(boe!=null&&boe>=45) txt += `Dazu kommen kräftige Böen bis ${Math.round(boe)} km/h. `;
+  if(uv!=null&&uv>=6) txt += "Die UV-Strahlung ist hoch, Sonnenschutz ist sinnvoll. ";
+  box.innerHTML = `<div class="dkopf">${tagName(i)} – ${text(d.weather_code[i])}</div>
+    <div class="dgitter">
+      ${zeile("🌦","tagsüber (6–18 Uhr)",regen(tag))}
+      ${zeile("🌙","spät abends / nachts",regen(nacht))}
+      ${zeile("🌅","Sonne",`↑ ${zeit(d.sunrise[i])}  ↓ ${zeit(d.sunset[i])} · ☀ ${Math.round(d.sunshine_duration[i]/3600)} h`)}
+      ${zeile("💨","Wind",`${windWort(wind)} aus ${RICHT_LANG[Math.round(d.wind_direction_10m_dominant[i]/45)%8]} (${Math.round(wind)} km/h)`)}
+      ${uv!=null?zeile("🕶","UV-Index",`${Math.round(uv)} – ${uvWort(uv)}`,uv>=6):""}
+      ${boe!=null?zeile("🌬","Böen",`bis ${Math.round(boe)} km/h`,boe>=60):""}
+    </div>
+    <div class="dtext">${txt.trim()}</div>`;
+}
 function tageZeigen(){
+  detailsZeigen();
   const d = daten.daily;
   document.querySelectorAll("#wahl button").forEach(b=>b.classList.toggle("an", +b.dataset.n===anzahl));
   document.getElementById("tageKopf").textContent = "Vorhersage";
@@ -348,7 +424,6 @@ function tageZeigen(){
     if(akt && (akt.offsetLeft < reihe.scrollLeft || akt.offsetLeft+akt.offsetWidth > reihe.scrollLeft+reihe.clientWidth)) reihe.scrollLeft = akt.offsetLeft - 6;
     box.querySelectorAll(".kachel").forEach(el=>el.onclick=()=>{
       gewaehlt = +el.dataset.i; tageZeigen(); abschnitteZeigen();
-      document.getElementById("abschnitte").scrollIntoView({behavior:"smooth",block:"center"});
     });
     return;
   }
