@@ -72,6 +72,23 @@
   .wahl button{white-space:nowrap;border:0;background:none;color:var(--leise);font:inherit;font-size:13px;font-weight:600;padding:6px 11px;border-radius:999px;cursor:pointer;text-transform:none;letter-spacing:0}
   .wahl button.an{background:#fff;color:#0d2a4a}
 
+  /* Ansicht-Schalter + Kacheln */
+  .titel .links{display:flex;align-items:center;gap:8px}
+  .ansicht{display:flex;background:rgba(0,0,0,.18);border-radius:999px;padding:3px}
+  .ansicht button{border:0;background:none;color:var(--leise);font-size:15px;line-height:1;padding:6px 9px;border-radius:999px;cursor:pointer}
+  .ansicht button.an{background:#fff;color:#0d2a4a}
+  @media(max-width:440px){#tageKopf{display:none}}
+  .kacheln{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(92px,1fr);gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:thin}
+  .kachel{scroll-snap-align:start;text-align:center;background:rgba(255,255,255,.05);border-radius:16px;padding:9px 4px 10px;cursor:pointer;border:1px solid transparent}
+  .kachel.aktiv{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+  .kachel .kn{font-weight:600;font-size:13.5px;white-space:nowrap}
+  .kachel .kd{font-size:12.5px;color:var(--leise);margin-top:1px}
+  .kachel .kmx{font-size:26px;font-weight:600;color:var(--max);margin-top:8px;line-height:1.1}
+  .kachel .kmn{font-size:18px;color:var(--min);margin-top:2px}
+  .kachel .ksym{display:flex;align-items:center;justify-content:center;gap:1px;height:46px;margin:6px 0 4px}
+  .kachel .ksym svg.w{width:46px;height:40px}
+  .kachel .ks{font-size:13px;color:var(--sonne)}
+  .kachel .kr{font-size:13px;color:var(--regen);margin-top:3px}
   /* Tagesliste */
   .tag{display:grid;grid-template-columns:78px 44px 50px 1fr;align-items:center;gap:6px;padding:8px 4px;border-top:1px solid rgba(255,255,255,.08);cursor:pointer;border-radius:12px}
   .tag:first-of-type{border-top:0}
@@ -125,7 +142,8 @@
     </div>
 
     <div class="karte">
-      <div class="titel"><span id="tageKopf">Vorhersage</span>
+      <div class="titel"><div class="links"><span id="tageKopf">Vorhersage</span>
+        <div class="ansicht" id="ansicht"><button data-a="kacheln" title="Kacheln" aria-label="Kachel-Ansicht">▦</button><button data-a="liste" title="Liste" aria-label="Listen-Ansicht">☰</button></div></div>
         <div class="wahl" id="wahl"><button data-n="3">3</button><button data-n="5">5</button><button data-n="7">7</button><button data-n="14">14 Tage</button></div>
       </div>
       <div id="tage"></div>
@@ -152,6 +170,8 @@
 
 <script>
 const STANDARD = {name:"Ergolding", lat:48.5786, lon:12.2077};
+let ansicht = "kacheln";
+try { if (localStorage.getItem("wetterAnsicht")==="liste") ansicht = "liste"; } catch(e){}
 let ort = STANDARD, daten = null, gewaehlt = 0, anzahl = 7, spanne = null;
 try { const s = JSON.parse(localStorage.getItem("wetterOrt")); if (s && s.lat) ort = s; } catch(e){}
 // geteilter Link: ?ort=...&lat=...&lon=...
@@ -278,6 +298,32 @@ function tageZeigen(){
   const n = Math.min(anzahl, d.time.length);
   const lo = Math.min(...d.temperature_2m_min.slice(0,n)), hi = Math.max(...d.temperature_2m_max.slice(0,n));
   const pos = t => ((t-lo)/((hi-lo)||1)*100).toFixed(1);
+  document.querySelectorAll("#ansicht button").forEach(b=>b.classList.toggle("an", b.dataset.a===ansicht));
+  const box = document.getElementById("tage");
+  if(ansicht==="kacheln"){
+    let k = "";
+    for(let i=0;i<n;i++){
+      k += `<div class="kachel ${i===gewaehlt?"aktiv":""}" data-i="${i}">
+        <div class="kn">${tagName(i)}</div>
+        <div class="kd">${datumKurz(i)} <span class="sicher" style="background:${SICHER[sicherheit(i)][0]}" title="${sicherText(i)}"></span></div>
+        <div class="kmx">${runde(d.temperature_2m_max[i])}°</div>
+        <div class="kmn">${runde(d.temperature_2m_min[i])}°</div>
+        <div class="ksym" title="${text(d.weather_code[i])}">${symbol(d.weather_code[i],false)}${pfeil(d.wind_direction_10m_dominant[i],d.wind_speed_10m_max[i])}</div>
+        <div class="ks">☀ ${Math.round(d.sunshine_duration[i]/3600)} h</div>
+        <div class="kr">💧 ${d.precipitation_probability_max[i]??"–"} %</div>
+      </div>`;
+    }
+    const alt = box.querySelector(".kacheln"), x = alt ? alt.scrollLeft : 0;
+    box.innerHTML = `<div class="kacheln">${k}</div>`;
+    const reihe = box.querySelector(".kacheln"); reihe.scrollLeft = x;
+    const akt = reihe.querySelector(".aktiv");
+    if(akt && (akt.offsetLeft < reihe.scrollLeft || akt.offsetLeft+akt.offsetWidth > reihe.scrollLeft+reihe.clientWidth)) reihe.scrollLeft = akt.offsetLeft - 6;
+    box.querySelectorAll(".kachel").forEach(el=>el.onclick=()=>{
+      gewaehlt = +el.dataset.i; tageZeigen(); abschnitteZeigen();
+      document.getElementById("abschnitte").scrollIntoView({behavior:"smooth",block:"center"});
+    });
+    return;
+  }
   let html = "";
   for(let i=0;i<n;i++){
     html += `<div class="tag ${i===gewaehlt?"aktiv":""}" data-i="${i}">
@@ -401,6 +447,10 @@ function trendZeigen(){
 }
 
 /* ---------- Bedienung ---------- */
+document.querySelectorAll("#ansicht button").forEach(b=>b.onclick=()=>{
+  ansicht = b.dataset.a; try{localStorage.setItem("wetterAnsicht",ansicht)}catch(e){}
+  if(daten) tageZeigen();
+});
 document.querySelectorAll("#wahl button").forEach(b=>b.onclick=()=>{
   anzahl = +b.dataset.n; try{localStorage.setItem("wetterTage",anzahl)}catch(e){}
   if(gewaehlt>=anzahl){ gewaehlt=0; abschnitteZeigen(); }
